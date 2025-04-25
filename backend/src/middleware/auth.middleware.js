@@ -5,17 +5,13 @@ export const authMiddleware = async(req,res,next) =>{
     try {
         const token = req.cookies.jwt;  
         if(!token){
-            return res.status(401).json({
-                message : "User unathorized - No token provided"
-            })
+            throw new ApiError(401,"User unathorized - No token provided")
         } 
         let decoded;
         try {
             decoded = jwt.verify(token,process.env.JWT_SECRET);
         } catch (error) {
-            return res.status(401).json({
-                message : "User unathorized - Invalid provided"
-            })            
+            throw new ApiError(401,"User unathorized - Invalid provided")             
         }
         const user = await db.user.findUnique({
             where : {
@@ -38,9 +34,7 @@ export const authMiddleware = async(req,res,next) =>{
         req.user = user;
         next();
     } catch (error) {
-        res.status(500).json({
-            error : "Error authenticating user"
-        })
+        throw new ApiError(500,"Error authenticating user") 
     }
 
 }

@@ -2,22 +2,20 @@ import bcryptjs from "bcryptjs"
 import {db} from "../libs/db.js"
 import { UserRole } from "../generated/prisma/index.js";
 import jwt from "jsonwebtoken"
+import { ApiError } from "../utils/apiError.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 
-export const register = async(req,res)=>{
+export const register = asyncHandler (async(req,res)=>{
     const {name,email,password,image} = req.body;
-    try {
-        const existingUser = await db.user.findUnique({
+    const existingUser = await db.user.findUnique({
             where : {
                 email
             }
-        })
+    })
         if(existingUser){
-            console.log("Error at register",error);
-            res.status(400).json({
-                error : "User already exists"
-            })
+            throw new ApiError(400,"User already exists")
         }
-
+    
         const hashedPassword = await bcryptjs.hash(password,10);
         const newUser = await db.user.create({
             data:{
@@ -25,8 +23,7 @@ export const register = async(req,res)=>{
                 email,
                 password : hashedPassword,
                 role : UserRole.USER,
-                image : "ritesh"
-                //need to add image
+                image :"temp" //will add image here later
             }
         })
         const token = jwt.sign({id:newUser.id},process.env.JWT_SECRET,{
@@ -49,29 +46,18 @@ export const register = async(req,res)=>{
                 role : newUser.role,
                 image : newUser.image
             }
-        })
-    } catch (error) {
-        console.log("Error in register",error);
-        res.status(500).json({
-            error : "Error creating user"
-        })
-    }
-    
-}
+        })    
+})
 
-export const login = async(req,res)=>{
+export const login = asyncHandler(async(req,res)=>{
     const {email,password} = req.body;
-
-    try {
         const user = await db.user.findUnique({
             where : {
                 email
             }
         })
         if(!user){
-            res.status(401).json({
-                error : "User not found"
-            })
+            throw new ApiError(401,"User not found")
         }
         const isVerified = await bcryptjs.compare(password,user.password)
     
@@ -99,20 +85,11 @@ export const login = async(req,res)=>{
             })
         }
         else{
-            res.status(401).json({
-                error : "Invalid credentials"
-            })        
-        }
-    } catch (error) {
-        console.log("Error logging in user",error);
-        res.status(500).json({
-            error : "Error logging in user"
-        })   
-    }
-}
+            throw new ApiError(401,"Invalid credentials")    
+        } 
+})
 
-export const logout = async(req,res)=>{
-    try {
+export const logout = asyncHandler(async(req,res)=>{
         res.clearCookie("jwt",{
             httpOnly : true,
             sameSite : "strict",
@@ -122,24 +99,13 @@ export const logout = async(req,res)=>{
             success : true,
             message : "User logged out successfully"
         })   
-    } catch (error) {
-        console.log("Error logging out",error);
-        res.status(500).json({
-            error : "Error logging out"
-        })          
     }
-}
+)
 
-export const check = async(req,res)=>{
-    try {
+export const check = asyncHandler(async(req,res)=>{
         res.status(200).json({
             success : true,
             message : "User authenticated successfully",
             user : req.user
         })  
-    } catch (error) {
-        res.status(500).json({
-            error : "Error checking user"
-        })                   
-    }
-}
+})
