@@ -1,13 +1,15 @@
 import jwt from "jsonwebtoken"
+import dotenv from "dotenv"
+dotenv.config()
 
 export const generateAccessToken = (userId)=>{
-    jwt.sign({id:userId},process.env.ACCESS_TOKEN_KEY,{
-        expiresIn : ACCESS_TOKEN_EXPIRY
+    return jwt.sign({id:userId},process.env.ACCESS_TOKEN_KEY,{
+        expiresIn : process.env.ACCESS_TOKEN_EXPIRY
     })
 }
 
 export const generateRefreshToken = (userId)=>{
-    jwt.sign({id:userId},process.env.REFRESH_TOKEN_KEY,{
-        expiresIn : REFRESH_TOKEN_EXPIRY
+    return jwt.sign({id:userId},process.env.REFRESH_TOKEN_KEY,{
+        expiresIn : process.env.REFRESH_TOKEN_EXPIRY
     })
 }

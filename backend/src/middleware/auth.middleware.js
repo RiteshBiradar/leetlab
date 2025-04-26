@@ -1,6 +1,8 @@
 import jwt from "jsonwebtoken";
 import { db } from "../libs/db.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiError } from "../utils/apiError.js";
+
 
 export const authMiddleware = asyncHandler(async (req, res, next) => {
   try {
@@ -9,7 +11,7 @@ export const authMiddleware = asyncHandler(async (req, res, next) => {
       throw new ApiError(401, "User unauthorized - No token provided");
     }
 
-    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_KEY);
 
     const user = await db.user.findUnique({
       where: {
@@ -33,6 +35,7 @@ export const authMiddleware = asyncHandler(async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
+    console.log(error)
     throw new ApiError(401, "Invalid access token");
   }
 });

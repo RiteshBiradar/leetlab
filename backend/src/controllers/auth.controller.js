@@ -1,7 +1,7 @@
 import bcryptjs from "bcryptjs"
 import {db} from "../libs/db.js"
 import { UserRole } from "../generated/prisma/index.js";
-import jwt, { decode } from "jsonwebtoken"
+import jwt from "jsonwebtoken"
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwt.js";
