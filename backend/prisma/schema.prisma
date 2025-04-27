@@ -30,10 +30,13 @@ model User{
   email String @unique
   image String?
   role UserRole @default(USER)
+  isVerified Boolean?
+  emailVerificationToken String? 
+  emailVerificationExpiry DateTime?
   password String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+  refreshToken String?
   problems Problem[]
 }
 

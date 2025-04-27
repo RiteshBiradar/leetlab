@@ -15,6 +15,7 @@ app.get("/",(req,res)=>{
 })
 
 app.use("/api/v1/auth",authRouter)
+
 app.listen(process.env.PORT,()=>{
     console.log("Server is running")
 })
