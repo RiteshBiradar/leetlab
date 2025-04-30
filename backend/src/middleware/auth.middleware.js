@@ -5,7 +5,6 @@ import { ApiError } from "../utils/ApiError.js";
 
 
 export const authMiddleware = asyncHandler(async (req, res, next) => {
-  try {
     const token = req.cookies.accessToken;
     if (!token) {
       throw new ApiError(401, "User unauthorized - No token provided");
@@ -34,8 +33,21 @@ export const authMiddleware = asyncHandler(async (req, res, next) => {
 
     req.user = user;
     next();
-  } catch (error) {
-    console.log(error)
-    throw new ApiError(401, "Invalid access token");
-  }
 });
+
+export const checkAdmin = asyncHandler(async(req,res,next) =>{
+
+    const userId = req.user.id;
+
+    const user = await db.user.findUnique({
+      where : {
+        id : userId
+      }
+    })
+    if(!user || user.role !== "ADMIN") throw new ApiError(400,"Access denied - User must be admin")
+    
+    // res.status(201).json({
+    //   message : "Admin user authenticated successfully"
+    // })
+    next();
+})

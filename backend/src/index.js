@@ -5,7 +5,7 @@ dotenv.config();
 
 const app = express()
 import authRouter from "./routes/auth.router.js"
-
+import problemRouter from "./routes/problem.router.js"
 
 app.use(express.json());
 app.use(cookieparse());
@@ -15,7 +15,7 @@ app.get("/",(req,res)=>{
 })
 
 app.use("/api/v1/auth",authRouter)
-
+app.use("/api/v1/problems",problemRouter)
 app.listen(process.env.PORT,()=>{
     console.log("Server is running")
 })
