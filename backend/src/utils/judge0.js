@@ -18,14 +18,12 @@ export const submitBatch = async (submissions) => {
         `${process.env.JUDGE0_API_URL}/submissions/batch?base64_encoded=false`,
         { submissions }
     );
-    console.log("🚨 Full batch submission response:", data);
     return data;
 };
 
 
 export const pollBatchResults = async(tokens)=>{
     while(true){
-        console.log("Judge0 URL:", process.env.JUDGE0_API_URL);
         const {data} = await axios.get(`${process.env.JUDGE0_API_URL}/submissions/batch`,{
             params:{
                 tokens:tokens.join(","),
@@ -41,3 +39,22 @@ export const pollBatchResults = async(tokens)=>{
         await sleep(1000)
     }
 }
+
+
+export const createSubmissions = (testcases, solutionCode, languageId) => {
+    return testcases.map(({ input, output }) => ({
+      source_code: solutionCode,
+      language_id: languageId,
+      stdin: input,
+      expected_output: output,
+    }));
+  };
+
+
+export const chunkArray = (array, size) => {
+    const result = [];
+    for (let i = 0; i < array.length; i += size) {
+      result.push(array.slice(i, i + size));
+    }
+    return result;
+  };

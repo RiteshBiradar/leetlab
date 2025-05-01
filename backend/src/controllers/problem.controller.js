@@ -1,6 +1,6 @@
 import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { getLanguageId, pollBatchResults, submitBatch } from "../utils/judge0.js";
+import { getLanguageId, pollBatchResults, submitBatch, createSubmissions, chunkArray } from "../utils/judge0.js";
 import {db} from "../libs/db.js"
 
 export const createProblem = asyncHandler(async(req,res)=>{
@@ -18,26 +18,35 @@ export const createProblem = asyncHandler(async(req,res)=>{
         referenceSolutions
     } = req.body;
 
+    const existingProblem = await db.problem.findUnique({
+      where : {
+        title
+      }
+    })
+
+    if(existingProblem) throw new ApiError(400,`Problem ${existingProblem} already exists`)
+      
     for(const[language,solutionCode] of Object.entries(referenceSolutions)){
         const languageId = getLanguageId(language);
         if(!languageId) throw new ApiError("400", `Language ${language} is not supported yet`)
 
-        const submissions = testcases.map(({input,output})=>({
-            source_code: solutionCode,
-            language_id: languageId,
-            stdin: input,
-            expected_output: output,            
-        }));
+      const allSubmissions = createSubmissions(testcases, solutionCode, languageId);
+      const chunks = chunkArray(allSubmissions, 20);
 
-        const submissionResults = await submitBatch(submissions)
+      for (const chunk of chunks) {
+        const submissionResults = await submitBatch(chunk);
         const tokens = submissionResults.map((res) => res.token);
-
         const results = await pollBatchResults(tokens);
-        const failedTest = results.find((r) => r.status.id !== 3);
-        if (failedTest) {
-          const failedIndex = results.indexOf(failedTest) + 1;
-          throw new ApiError(400, `Test case ${failedIndex} failed for language ${language}`)
+
+        for (let i = 0; i < results.length; i++) {
+          const result = results[i];
+
+          if (result.status.id !== 3) {
+            throw new ApiError(400, `Testcase ${i + 1} failed for language ${language}`)
+          }
         }
+        
+      }
     }
     const newProblem = await db.problem.create({
         data: {
@@ -55,7 +64,7 @@ export const createProblem = asyncHandler(async(req,res)=>{
       });
     return res.status(201).json({
         sucess: true,
-        message: "Message Created Successfully",
+        message: "Problem Created Successfully",
         problem: newProblem,
       });
 })
