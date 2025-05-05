@@ -226,11 +226,6 @@ exports.Difficulty = exports.$Enums.Difficulty = {
   HARD: 'HARD'
 };
 
-exports.Status = exports.$Enums.Status = {
-  Accepted: 'Accepted',
-  WrongAnswer: 'WrongAnswer'
-};
-
 exports.Prisma.ModelName = {
   User: 'User',
   Problem: 'Problem',
