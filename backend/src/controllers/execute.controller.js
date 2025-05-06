@@ -1,9 +1,10 @@
 import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { createSubmissions, pollBatchResults, submitBatch } from "../utils/judge0.js";
+import { createSubmissions, getLanguageById, pollBatchResults, submitBatch } from "../utils/judge0.js";
+import {db} from "../libs/db.js"
 
 export const executeCode = asyncHandler(async(req,res)=>{
-    const {source_code, languageId , stdin, expected_outputs, title} = req.body;
+    const {source_code, languageId , stdin, expected_outputs, problemId} = req.body;
 
     const userId = req.user.id;
 
@@ -24,7 +25,6 @@ export const executeCode = asyncHandler(async(req,res)=>{
 
 
     let allPassed = true;
-    console.log(results);
 
     const detailedResults = results.map((result,i)=>{
         const expected_output = expected_outputs[i]?.trim();
@@ -36,7 +36,7 @@ export const executeCode = asyncHandler(async(req,res)=>{
         }
 
         return {
-            testCase : `${i+1}`,
+            testCase : i+1,
             passed,
             stdout,
             expected : expected_output,
@@ -47,9 +47,68 @@ export const executeCode = asyncHandler(async(req,res)=>{
             time : result.time ? `${result.time} s` : undefined,
         }
     })
-    console.log(detailedResults)
+    
+
+    const submission = await db.submission.create({
+        data:{
+        userId,
+        problemId,
+        sourceCode : source_code,
+        language : getLanguageById(languageId),
+        stdin : stdin.join("\n"),
+        stdout : JSON.stringify(detailedResults.map((r)=>r.stdout)),
+        stderr : detailedResults.some((r)=>r.stderr) ? JSON.stringify(detailedResults.map((r) => r.stderr)) : null,
+        compileOutput : detailedResults.some((r)=>r.compileOutput) ? JSON.stringify(detailedResults.map((r)=>r.compileOutput)): null,
+        status : (allPassed) ? "Accepted" : "Wrong Answer",
+        memory : detailedResults.some((r)=>r.memory) ? JSON.stringify(detailedResults.map((r) => r.memory)) : null,
+        time : detailedResults.some((r)=>r.time) ? JSON.stringify(detailedResults.map((r) => r.time)) : null,
+        },
+    })    
+
+    if(allPassed){
+        await db.problemSolved.upsert({
+            where:{
+                userId_problemId : {
+                    userId,problemId
+                }
+            },
+            update:{},
+            create:{
+                userId,
+                problemId
+            }
+        })
+    }
+
+    const testCaseResults = detailedResults.map((result) => ({
+        submissionId: submission.id,
+        testCase: result.testCase,
+        passed: result.passed,
+        stdout: result.stdout,
+        expected: result.expected,
+        stderr: result.stderr,
+        compileOutput: result.compile_output,
+        status: result.status,
+        memory: result.memory,
+        time: result.time,
+      }));
+
+      await db.testCaseResult.createMany({
+        data: testCaseResults,
+      });
+
+      const submissionWithTestCase = await db.submission.findUnique({
+        where: {
+          id: submission.id,
+        },
+        include: {
+          testCases: true,
+        },
+      });      
+      
     res.status(200).json({
         success : true,
-        message : "Code Executed Successfully"
+        message : "Code Executed Successfully",
+        submission : submissionWithTestCase
     })
 })

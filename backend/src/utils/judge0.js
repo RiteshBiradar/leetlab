@@ -58,3 +58,13 @@ export const chunkArray = (array, size) => {
     }
     return result;
   };
+
+
+export const getLanguageById = (languageId) =>{
+    const Languages = {
+        71 : "PYTHON",
+        62 : "JAVA",
+        63 : "JAVASCRIPT",        
+    }
+    return Languages[languageId] || "Unknow" 
+}
