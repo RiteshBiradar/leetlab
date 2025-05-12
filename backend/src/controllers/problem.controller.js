@@ -191,3 +191,28 @@ export const deleteProblem = asyncHandler(async(req,res)=>{
     message: "Problem deleted successfully",
   });
 })
+
+export const getAllProblemsSolvedByUser = asyncHandler(async(req,res)=>{
+
+    const problems = await db.problem.findMany({
+      where : {
+        solvedBy : {
+          some : {
+            userId : req.user.id
+          }
+        }
+      },
+      include : {
+        solvedBy : {
+          where:{
+            userId : req.user.id
+          }
+        }
+      }
+    })
+    res.status(200).json({
+      success : true,
+      message : "Problems Solved By User Fetched Successfully",
+      problems  
+    })
+})
