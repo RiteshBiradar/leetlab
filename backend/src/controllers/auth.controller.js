@@ -153,8 +153,15 @@ export const login = asyncHandler(async(req,res)=>{
             throw new ApiError(401,"User not found")
         }
         
+        if (!user.isVerified) {
+            throw new ApiError(403, "Please check your email and verify before logging in");
+        }
+
         const isPasswordValid  = await bcryptjs.compare(password,user.password)
         if(!isPasswordValid) throw new ApiError(401,"Invalid credentials") 
+        
+        res.clearCookie("accessToken", { path: "/" });
+        res.clearCookie("refreshToken", { path: "/" });
 
         const accessToken = generateAccessToken(user.id)
         const refreshToken = generateRefreshToken(user.id)
@@ -164,11 +171,11 @@ export const login = asyncHandler(async(req,res)=>{
             data: { refreshToken: refreshToken },
         });
 
-
         const options = {
             httpOnly : true,
             sameSite : "strict",
             secure : process.env.NODE_ENV !=="development",
+            path: "/",
         }
 
         res.cookie("accessToken", accessToken, options)
@@ -191,6 +198,7 @@ export const logout = asyncHandler(async(req,res)=>{
             httpOnly : true,
             sameSite : "strict",
             secure : process.env.NODE_ENV !=="development",
+            path: "/",
         })
         res.status(204).json({
             success : true,
@@ -200,7 +208,11 @@ export const logout = asyncHandler(async(req,res)=>{
 )
 
 export const check = asyncHandler(async(req,res)=>{
-        res.status(200).json({
+    if (!req.user) {
+        throw new ApiError(401,"Not authenticated")
+    }    
+
+    res.status(200).json({
             success : true,
             message : "User authenticated successfully",
             user : req.user

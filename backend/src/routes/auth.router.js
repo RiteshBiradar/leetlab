@@ -9,6 +9,7 @@ router.post("/register",register)
 router.get("/verify",verifyEmail)
 
 router.post("/resendVerification",resendVerificationEmail)
+
 router.post("/login",login)
 
 router.get("/logout", authMiddleware , logout)

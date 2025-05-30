@@ -1,7 +1,6 @@
 import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { db } from "../libs/db.js";
-import { deleteProblem } from "./problem.controller.js";
 
 export const getAllPlaylist = asyncHandler(async(req,res)=>{
     const userId = req.user.id;
@@ -81,19 +80,17 @@ export const addProblemToPlaylist = asyncHandler(async(req,res)=>{
     const {playlistId} = req.params;
     if(!playlistId) throw new ApiError(404,"Playlist Not Found")
 
-    const problemIds = req.body;
+    const {problemIds} = req.body;
     if(!problemIds) throw new ApiError(404,"Problem Not Found")
     
-
     if(!Array.isArray(problemIds) || problemIds.length==0) throw new ApiError(401,"Invalid or missing problemIds")
 
-    const problemsInPlaylist = await db.problemsInPlaylist.createMany({
-        data: 
-            problemIds.map((problemId)=>{
+    const problemsInPlaylist = await db.problemInPlaylist.createMany({
+        data: problemIds.map((problemId)=>({
                 playlistId,
                 problemId
             })
-    })
+    )})
 
     res.status(201).json({
         success : true,
@@ -125,7 +122,7 @@ export const removeProblemFromPlaylist = asyncHandler(async(req,res)=>{
     const {problemIds} = req.body
     if(!Array.isArray(problemIds) || problemIds.length==0) throw new ApiError(401,"Invalid or missing problemIds")
     
-    const deletedProblems = await db.problemsInPlaylist.delete({
+    const deletedProblems = await db.problemInPlaylist.deleteMany({
         where:{
             playlistId,
             problemId : {
