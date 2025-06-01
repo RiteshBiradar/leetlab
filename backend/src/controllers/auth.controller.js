@@ -9,6 +9,8 @@ import crypto from "crypto"
 import ms from "ms"
 import { emailVerificationMailContent } from "../utils/mail.js";
 import { sendMail } from "../utils/mail.js";
+const accessTokenMaxAge = ms(process.env.ACCESS_TOKEN_EXPIRY);  
+const refreshTokenMaxAge = ms(process.env.REFRESH_TOKEN_EXPIRY);
 
 export const register = asyncHandler (async(req,res)=>{
     const {name,email,password,image} = req.body;
@@ -171,15 +173,24 @@ export const login = asyncHandler(async(req,res)=>{
             data: { refreshToken: refreshToken },
         });
 
-        const options = {
-            httpOnly : true,
-            sameSite : "strict",
-            secure : process.env.NODE_ENV !=="development",
-            path: "/",
-        }
+    const accessTokenOptions = {
+        httpOnly: true,
+        sameSite: "none",
+        secure: process.env.NODE_ENV !== "development",
+        path: "/",
+        maxAge: accessTokenMaxAge
+    };
 
-        res.cookie("accessToken", accessToken, options)
-           .cookie("refreshToken", refreshToken, options)
+    const refreshTokenOptions = {
+        httpOnly: true,
+        sameSite: "none",
+        secure: process.env.NODE_ENV !== "development",
+        path: "/",
+        maxAge: refreshTokenMaxAge
+    };
+
+    res.cookie("accessToken", accessToken, accessTokenOptions)
+        .cookie("refreshToken", refreshToken, refreshTokenOptions);
         
         res.status(200).json({
             success  : true,
@@ -194,9 +205,15 @@ export const login = asyncHandler(async(req,res)=>{
 })
 
 export const logout = asyncHandler(async(req,res)=>{
+        res.clearCookie("accessToken", {
+            httpOnly: true,
+            sameSite: "none",
+            secure: process.env.NODE_ENV !== "development",
+            path: "/",
+        });
         res.clearCookie("refreshToken",{
             httpOnly : true,
-            sameSite : "strict",
+            sameSite : "none",
             secure : process.env.NODE_ENV !=="development",
             path: "/",
         })
@@ -236,31 +253,17 @@ export const refreshTokenHandler = asyncHandler(async(req,res)=>{
         if(refreshToken!== user.refreshToken) throw new ApiError(401, "Invalid refresh token")
 
         const newAccessToken = generateAccessToken(user.id)
-        const newRefreshToken = generateRefreshToken(user.id)
     
-        await db.user.update({
-            where : {
-                id : user.id
-            },
-            data :{
-                refreshToken : newRefreshToken
-            }
-        })
+        const accessTokenOptions = {
+            httpOnly: true,
+            sameSite: "none",
+            secure: process.env.NODE_ENV !== "development",
+            path: "/",
+            maxAge: accessTokenMaxAge
+        };
     
-        const options = {
-            httpOnly : true,
-            sameSite : "strict",
-            secure : process.env.NODE_ENV !=="development",
-        }
-        
-        res.cookie("accessToken", newAccessToken, options)
-            .cookie("refreshToken", newRefreshToken, options)
-            .status(201)
-            .json({
-                success: true,
-                message: "Access token refreshed",
-            })
-        
+    res.cookie("accessToken", newAccessToken, accessTokenOptions).status(200).json({ success: true, message: "Access token refreshed" });
+
     } catch (error) {
         throw new ApiError(500, "Invalid refresh token")
     }
