@@ -162,9 +162,6 @@ export const login = asyncHandler(async(req,res)=>{
         const isPasswordValid  = await bcryptjs.compare(password,user.password)
         if(!isPasswordValid) throw new ApiError(401,"Invalid credentials") 
         
-        res.clearCookie("accessToken", { path: "/" });
-        res.clearCookie("refreshToken", { path: "/" });
-
         const accessToken = generateAccessToken(user.id)
         const refreshToken = generateRefreshToken(user.id)
 
@@ -175,16 +172,16 @@ export const login = asyncHandler(async(req,res)=>{
 
     const accessTokenOptions = {
         httpOnly: true,
-        sameSite: "none",
-        secure: process.env.NODE_ENV !== "development",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        secure: process.env.NODE_ENV === "production",
         path: "/",
         maxAge: accessTokenMaxAge
     };
 
     const refreshTokenOptions = {
         httpOnly: true,
-        sameSite: "none",
-        secure: process.env.NODE_ENV !== "development",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        secure: process.env.NODE_ENV === "production",
         path: "/",
         maxAge: refreshTokenMaxAge
     };
@@ -225,6 +222,7 @@ export const logout = asyncHandler(async(req,res)=>{
 )
 
 export const check = asyncHandler(async(req,res)=>{
+    console.log(req.user)
     if (!req.user) {
         throw new ApiError(401,"Not authenticated")
     }    
@@ -256,8 +254,8 @@ export const refreshTokenHandler = asyncHandler(async(req,res)=>{
     
         const accessTokenOptions = {
             httpOnly: true,
-            sameSite: "none",
-            secure: process.env.NODE_ENV !== "development",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+            secure: process.env.NODE_ENV === "production",
             path: "/",
             maxAge: accessTokenMaxAge
         };
