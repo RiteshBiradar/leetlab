@@ -9,6 +9,14 @@ export const getAllSubmission = asyncHandler(async(req,res)=>{
     const submission = await db.submission.findMany({
         where:{
             userId : userId
+        },
+        include: {
+            problem: {
+            select: { title: true },
+        },
+        },
+        orderBy: {
+            createdAt: "desc",
         }
     })
 
