@@ -1,4 +1,4 @@
-# 🧠 LeetCode Clone - CodeArena
+# 🧠 LeetCode Clone - CodeChallenge
 
 A full-stack LeetCode-style coding platform where users can solve coding problems, run test cases, and view their submission history.
 
