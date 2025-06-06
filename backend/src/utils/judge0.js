@@ -15,8 +15,14 @@ export const getLanguageId = (language)=>{
 
 export const submitBatch = async (submissions) => {
     const { data } = await axios.post(
-        `${process.env.JUDGE0_API_URL}/submissions/batch?base64_encoded=false`,
-        { submissions }
+        `${process.env.SULU_JUDGE0_API_URL}/submissions/batch?base64_encoded=false`,
+        { submissions },
+        {
+        headers: {
+            Accept: 'application/json',
+            Authorization: Bearer `${process.env.SULU_JUDGE0_API_KEY}`
+        }
+    }
     );
     return data;
 };
@@ -24,11 +30,15 @@ export const submitBatch = async (submissions) => {
 
 export const pollBatchResults = async(tokens)=>{
     while(true){
-        const {data} = await axios.get(`${process.env.JUDGE0_API_URL}/submissions/batch`,{
+        const {data} = await axios.get(`${process.env.SULU_JUDGE0_API_URL}/submissions/batch`,{
             params:{
                 tokens:tokens.join(","),
                 base64_encoded:false,
-            }
+            },
+            headers: {
+                Accept: 'application/json',
+                Authorization: Bearer `${process.env.SULU_JUDGE0_API_KEY}`
+      }
         })
         const results = data.submissions;
 
