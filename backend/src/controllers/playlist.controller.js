@@ -55,32 +55,42 @@ export const getPlayListDetails = asyncHandler(async(req,res)=>{
     })
 })
 
-export const createPlaylist = asyncHandler(async(req,res)=>{
-    const {name,description} = req.body
-
+export const createPlaylist = asyncHandler(async (req, res) => {
+    const { name, description } = req.body;
     const userId = req.user.id;
-    if(!userId) throw new ApiError(404,"User not Found")
-    
+    if (!userId) throw new ApiError(404, "User not Found");
+    const existing = await db.playlist.findFirst({
+        where: {
+            name,
+            userId,
+        },
+    });
+
+  if (existing) {
+    throw new ApiError(400, "A playlist with this name already exists.");
+  }
+
     const playlist = await db.playlist.create({
-        data:{
-            name : name,
-            description : description,
-            userId : userId
-        }
-    })
-    
-    res.status(200).json({
-        success : true,
-        message : "Playlist created succesfully",
-        playlist 
-    })
-})
+        data: {
+            name,
+            description,
+            userId,
+        },
+    });
+
+  res.status(200).json({
+    success: true,
+    message: "Playlist created successfully",
+    playlist,
+  });
+});
 
 export const addProblemToPlaylist = asyncHandler(async(req,res)=>{
     const {playlistId} = req.params;
     if(!playlistId) throw new ApiError(404,"Playlist Not Found")
 
     const {problemIds} = req.body;
+    console.log(problemIds)
     if(!problemIds) throw new ApiError(404,"Problem Not Found")
     
     if(!Array.isArray(problemIds) || problemIds.length==0) throw new ApiError(401,"Invalid or missing problemIds")

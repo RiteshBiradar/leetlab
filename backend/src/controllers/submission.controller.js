@@ -41,7 +41,10 @@ export const getSubmissionsForProblem = asyncHandler(async(req,res)=>{
         where:{
             userId:userId,
             problemId:problemId
-        }
+        },
+          orderBy: {
+            createdAt: "desc",
+        },
     })    
     
     res.status(200).json({
@@ -57,6 +60,9 @@ export const getAllTheSubmissionsForProblem = asyncHandler(async(req,res)=>{
     const submission = await db.submission.count({
         where:{
             problemId : problemId
+        },
+        orderBy : {
+            createdAt: "desc",
         }
     })
     res.status(200).json({

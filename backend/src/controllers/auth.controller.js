@@ -35,7 +35,7 @@ export const register = asyncHandler (async(req,res)=>{
                 role : UserRole.USER,
                 emailVerificationToken,
                 emailVerificationExpiry,
-                image :"temp" //will add image here later
+                image :"temp" 
             }
         })
         const verificationUrl = `${process.env.BASE_URL.replace(/\/$/, '')}/api/v1/auth/verify?token=${emailVerificationToken}`;
@@ -61,7 +61,8 @@ export const register = asyncHandler (async(req,res)=>{
                 user : newUser.user,
                 email : newUser.email,
                 role : newUser.role,
-                image : newUser.image
+                image : newUser.image,
+                createdAt: newUser.createdAt,
             }
         })    
 })
@@ -196,7 +197,8 @@ export const login = asyncHandler(async(req,res)=>{
                 id : user.id,
                 name : user.name,
                 email,
-                role : UserRole.USER
+                role : user.role,
+                createdAt: user.createdAt,
             }
         })
 })
@@ -230,7 +232,14 @@ export const check = asyncHandler(async(req,res)=>{
     res.status(200).json({
             success : true,
             message : "User authenticated successfully",
-            user : req.user
+            user: {
+                id: req.user.id,
+                name: req.user.name,
+                email: req.user.email,
+                role: req.user.role,
+                image: req.user.image,
+                createdAt: req.user.createdAt,
+            }
         })  
 })
 
