@@ -19,7 +19,9 @@ app.use(cookieparse());
 app.use(cors({
   origin: ["http://localhost:5173",
       "https://leetlab-frontend-seven.vercel.app",
-      "https://leetlab-frontend-hune4bku9-ritesh-biradars-projects.vercel.app"], 
+      "https://leetlab-frontend-hune4bku9-ritesh-biradars-projects.vercel.app",
+      "https://chaiaurdsa.xyz", 
+      "https://www.chaiaurdsa.xyz" ], 
   credentials: true,           
 }));
 
