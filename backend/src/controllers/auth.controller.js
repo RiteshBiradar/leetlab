@@ -173,7 +173,7 @@ export const login = asyncHandler(async(req,res)=>{
 
     const accessTokenOptions = {
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
         secure: process.env.NODE_ENV === "production",
         path: "/",
         maxAge: accessTokenMaxAge
@@ -181,7 +181,7 @@ export const login = asyncHandler(async(req,res)=>{
 
     const refreshTokenOptions = {
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
         secure: process.env.NODE_ENV === "production",
         path: "/",
         maxAge: refreshTokenMaxAge
@@ -206,14 +206,14 @@ export const login = asyncHandler(async(req,res)=>{
 export const logout = asyncHandler(async(req,res)=>{
         res.clearCookie("accessToken", {
             httpOnly: true,
-            sameSite: "none",
-            secure: process.env.NODE_ENV !== "development",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+            secure: process.env.NODE_ENV === "production",
             path: "/",
         });
         res.clearCookie("refreshToken",{
             httpOnly : true,
-            sameSite : "none",
-            secure : process.env.NODE_ENV !=="development",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+            secure: process.env.NODE_ENV === "production",
             path: "/",
         })
         res.status(204).json({

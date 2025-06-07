@@ -20,7 +20,7 @@ export const submitBatch = async (submissions) => {
         {
         headers: {
             Accept: 'application/json',
-            Authorization: Bearer `${process.env.SULU_JUDGE0_API_KEY}`
+            Authorization: `Bearer ${process.env.SULU_JUDGE0_API_KEY}`
         }
     }
     );
@@ -37,7 +37,7 @@ export const pollBatchResults = async(tokens)=>{
             },
             headers: {
                 Accept: 'application/json',
-                Authorization: Bearer `${process.env.SULU_JUDGE0_API_KEY}`
+                Authorization: `Bearer ${process.env.SULU_JUDGE0_API_KEY}`
       }
         })
         const results = data.submissions;
