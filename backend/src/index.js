@@ -12,7 +12,6 @@ import submissionRouter from "./routes/submission.router.js"
 import playlistRouter from "./routes/playlist.router.js"
 import { errorHandler } from "./middleware/errorHandler.middleware.js";
 
-
 app.use(express.json());
 app.use(cookieparse());
 
@@ -35,7 +34,6 @@ app.use("/api/v1/problems",problemRouter)
 app.use("/api/v1/execute-code",executeRouter)
 app.use("/api/v1/submission",submissionRouter) 
 app.use("/api/v1/playlist",playlistRouter)
-
 
 app.use(errorHandler);
 app.listen(process.env.PORT,()=>{
