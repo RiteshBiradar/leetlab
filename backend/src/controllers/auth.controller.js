@@ -1,277 +1,215 @@
-import bcryptjs from "bcryptjs"
-import {db} from "../libs/db.js"
+import bcryptjs from "bcryptjs";
+import crypto from "crypto";
+import jwt from "jsonwebtoken";
+import ms from "ms";
+
+import { db } from "../libs/db.js";
 import { UserRole } from "../generated/prisma/index.js";
-import jwt from "jsonwebtoken"
 import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwt.js";
-import crypto from "crypto"
-import ms from "ms"
-import { emailVerificationMailContent } from "../utils/mail.js";
-import { sendMail } from "../utils/mail.js";
-const accessTokenMaxAge = ms(process.env.ACCESS_TOKEN_EXPIRY);  
+import { sendMail, emailVerificationMailContent } from "../utils/mail.js";
+
+const accessTokenMaxAge = ms(process.env.ACCESS_TOKEN_EXPIRY);
 const refreshTokenMaxAge = ms(process.env.REFRESH_TOKEN_EXPIRY);
 
-export const register = asyncHandler (async(req,res)=>{
-    const {name,email,password,image} = req.body;
-    const existingUser = await db.user.findUnique({
-            where : {
-                email
-            }
-    })
-        if(existingUser){
-            throw new ApiError(400,"User already exists")
-        }
-        const emailVerificationToken = crypto.randomBytes(32).toString("hex");
-        const emailVerificationExpiry = new Date(new Date(Date.now()+ms(process.env.EMAIL_VERIFY_EXPIRY)))
+export const register = asyncHandler(async (req, res) => {
+    const { name, email, password, image } = req.body;
+    const existingUser = await db.user.findUnique({ where: { email } });
 
-        
-        const hashedPassword = await bcryptjs.hash(password,10);
-        const newUser = await db.user.create({
-            data:{
-                name,
-                email,
-                password : hashedPassword,
-                role : UserRole.USER,
-                emailVerificationToken,
-                emailVerificationExpiry,
-                image :"temp" 
-            }
-        })
-        const verificationUrl = `${process.env.BASE_URL.replace(/\/$/, '')}/api/v1/auth/verify?token=${emailVerificationToken}`;
-
-
-        try {
+    if (existingUser) {
+        if (!existingUser.isVerified) {
+            const verificationUrl = `${process.env.BASE_URL.replace(/\/$/, '')}/api/v1/auth/verify?token=${existingUser.emailVerificationToken}`;
             await sendMail({
-                email:newUser.email,
-                subject:"Verify your email",
-                mailGenContent : emailVerificationMailContent(
-                    newUser.name,
-                    verificationUrl
-                )
-            })
-        } catch (error) {
-            throw new ApiError(500,"Failed to send verification email")
+                email: existingUser.email,
+                subject: "Verify your email",
+                mailGenContent: emailVerificationMailContent(existingUser.name, verificationUrl),
+            });
+            throw new ApiError(400, "Verification email resent.");
         }
-        res.status(201).json({
-            success : true,
-            message : "User created successfully",
-            user : {
-                id : newUser.id,
-                user : newUser.user,
-                email : newUser.email,
-                role : newUser.role,
-                image : newUser.image,
-                createdAt: newUser.createdAt,
-            }
-        })    
-})
+        throw new ApiError(400, "User already exists");
+    }
 
-export const verifyEmail = asyncHandler(async(req,res)=>{
+    const emailVerificationToken = crypto.randomBytes(32).toString("hex");
+    const emailVerificationExpiry = new Date(Date.now() + ms(process.env.EMAIL_VERIFY_EXPIRY));
+    const hashedPassword = await bcryptjs.hash(password, 10);
+
+    const newUser = await db.user.create({
+        data: {
+            name,
+            email,
+            password: hashedPassword,
+            role: UserRole.USER,
+            emailVerificationToken,
+            emailVerificationExpiry,
+            image: image || "temp",
+        },
+    });
+
+    const verificationUrl = `${process.env.BASE_URL.replace(/\/$/, '')}/api/v1/auth/verify?token=${emailVerificationToken}`;
+    await sendMail({
+        email: newUser.email,
+        subject: "Verify your email",
+        mailGenContent: emailVerificationMailContent(newUser.name, verificationUrl),
+    });
+
+    res.status(201).json({
+        success: true,
+        message: "Verification email sent.",
+        user: {
+            id: newUser.id,
+            name: newUser.name,
+            email: newUser.email,
+            role: newUser.role,
+            image: newUser.image,
+            createdAt: newUser.createdAt,
+        },
+    });
+});
+
+export const verifyEmail = asyncHandler(async (req, res) => {
     const token = req.query.token;
-    if(!token){
-        throw new ApiError(401,"Invalid token for verification")
-    }
+    if (!token) throw new ApiError(401, "Token missing");
 
-    const user = await db.user.findFirst({
-        where :{
-            emailVerificationToken : token
-        }
-    })
+    const user = await db.user.findFirst({ where: { emailVerificationToken: token } });
+    if (!user) throw new ApiError(404, "Invalid token");
 
-    if(!user){
-        throw new ApiError(404 , "User not found")
-    }
     await db.user.update({
         where: { id: user.id },
         data: {
             isVerified: true,
             emailVerificationToken: null,
-            emailVerificationExpiry: null
-        }
+            emailVerificationExpiry: null,
+        },
     });
 
-    res.status(200).json({
-        message : "User verification successfull",
-        status : 200
-    })
-})
+    res.status(200).json({ success: true, message: "Email verified" });
+});
 
-export const resendVerificationEmail = asyncHandler(async(req,res)=>{
-    const {email} = req.body
+export const resendVerificationEmail = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+    if (!email) throw new ApiError(400, "Email required");
 
-    if(!email){
-        throw new ApiError(401, "Invalid refresh token. Token might be expired or tampered with.");
-    }
-    const user = await db.user.findUnique({
-        where : {
-            email : email
-        }
-    })
-    if(!user) throw new ApiError(404,"User not found")
-    
-    if(user.isVerified===true){
-        throw new ApiError(400,"User already verified")
-    }
+    const user = await db.user.findUnique({ where: { email } });
+    if (!user) throw new ApiError(404, "User not found");
+    if (user.isVerified) throw new ApiError(400, "Already verified");
 
     const emailVerificationToken = crypto.randomBytes(32).toString("hex");
-    const emailVerificationExpiry = new Date(new Date(Date.now()+ms(process.env.EMAIL_VERIFY_EXPIRY)))
+    const emailVerificationExpiry = new Date(Date.now() + ms(process.env.EMAIL_VERIFY_EXPIRY));
 
     await db.user.update({
-        where : {
-            email : email
-        },
-        data : {
-            emailVerificationToken: emailVerificationToken, 
-            emailVerificationExpiry : emailVerificationExpiry
-        }
-    })
+        where: { email },
+        data: { emailVerificationToken, emailVerificationExpiry },
+    });
+
     const verificationUrl = `${process.env.BASE_URL.replace(/\/$/, '')}/api/v1/auth/verify?token=${emailVerificationToken}`;
-    try {
+    await sendMail({
+        email: user.email,
+        subject: "Verify your email",
+        mailGenContent: emailVerificationMailContent(user.name, verificationUrl),
+    });
+
+    res.status(200).json({ success: true, message: "Verification email sent" });
+});
+
+export const login = asyncHandler(async (req, res) => {
+    const { email, password } = req.body;
+    const user = await db.user.findUnique({ where: { email } });
+
+    if (!user) throw new ApiError(401, "User not found");
+    if (!user.isVerified) {
+        const verificationUrl = `${process.env.BASE_URL.replace(/\/$/, '')}/api/v1/auth/verify?token=${user.emailVerificationToken}`;
         await sendMail({
-            email:user.email,
-            subject:"Verify your email",
-            mailGenContent : emailVerificationMailContent(
-                user.name,
-                verificationUrl
-            )
-        })
-    } catch (error) {
-        throw new ApiError(500,"Failed to send verification email")
-    }
-    res.status(200).json({
-        success : true,
-        message : "Verification email sent successfully"
-    })
-})
-export const login = asyncHandler(async(req,res)=>{
-    const {email,password} = req.body;
-        const user = await db.user.findUnique({
-            where : {
-                email
-            }
-        })
-
-        if(!user){
-            throw new ApiError(401,"User not found")
-        }
-        
-        if (!user.isVerified) {
-            throw new ApiError(403, "Please check your email and verify before logging in");
-        }
-
-        const isPasswordValid  = await bcryptjs.compare(password,user.password)
-        if(!isPasswordValid) throw new ApiError(401,"Invalid credentials") 
-        
-        const accessToken = generateAccessToken(user.id)
-        const refreshToken = generateRefreshToken(user.id)
-
-        await db.user.update({
-            where: { id: user.id },
-            data: { refreshToken: refreshToken },
+            email: user.email,
+            subject: "Verify your email",
+            mailGenContent: emailVerificationMailContent(user.name, verificationUrl),
         });
+        throw new ApiError(400, "Email not verified");
+    }
 
-    const accessTokenOptions = {
+    const isPasswordValid = await bcryptjs.compare(password, user.password);
+    if (!isPasswordValid) throw new ApiError(401, "Invalid credentials");
+
+    const accessToken = generateAccessToken(user.id);
+    const refreshToken = generateRefreshToken(user.id);
+
+    await db.user.update({ where: { id: user.id }, data: { refreshToken } });
+
+    const cookieOptions = {
         httpOnly: true,
         sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
         secure: process.env.NODE_ENV === "production",
         path: "/",
-        maxAge: accessTokenMaxAge
     };
 
-    const refreshTokenOptions = {
-        httpOnly: true,
-        sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
-        secure: process.env.NODE_ENV === "production",
-        path: "/",
-        maxAge: refreshTokenMaxAge
-    };
-
-    res.cookie("accessToken", accessToken, accessTokenOptions)
-        .cookie("refreshToken", refreshToken, refreshTokenOptions);
-        
-        res.status(200).json({
-            success  : true,
-            message : "User logged in successfully",
-            user : {
-                id : user.id,
-                name : user.name,
-                email,
-                role : user.role,
-                createdAt: user.createdAt,
-            }
-        })
-})
-
-export const logout = asyncHandler(async(req,res)=>{
-        res.clearCookie("accessToken", {
-            httpOnly: true,
-            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-            secure: process.env.NODE_ENV === "production",
-            path: "/",
-        });
-        res.clearCookie("refreshToken",{
-            httpOnly : true,
-            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-            secure: process.env.NODE_ENV === "production",
-            path: "/",
-        })
-        res.status(204).json({
-            success : true,
-            message : "User logged out successfully"
-        })   
-    }
-)
-
-export const check = asyncHandler(async(req,res)=>{
-    console.log(req.user)
-    if (!req.user) {
-        throw new ApiError(401,"Not authenticated")
-    }    
-
-    res.status(200).json({
-            success : true,
-            message : "User authenticated successfully",
+    res
+        .cookie("accessToken", accessToken, { ...cookieOptions, maxAge: accessTokenMaxAge })
+        .cookie("refreshToken", refreshToken, { ...cookieOptions, maxAge: refreshTokenMaxAge })
+        .status(200)
+        .json({
+            success: true,
+            message: "Login successful",
             user: {
-                id: req.user.id,
-                name: req.user.name,
-                email: req.user.email,
-                role: req.user.role,
-                image: req.user.image,
-                createdAt: req.user.createdAt,
-            }
-        })  
-})
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                createdAt: user.createdAt,
+            },
+        });
+});
 
+export const logout = asyncHandler(async (req, res) => {
+    const options = {
+        httpOnly: true,
+        sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+    };
 
-export const refreshTokenHandler = asyncHandler(async(req,res)=>{
+    res
+        .clearCookie("accessToken", options)
+        .clearCookie("refreshToken", options)
+        .status(204)
+        .json({ success: true, message: "Logged out" });
+});
+
+export const check = asyncHandler(async (req, res) => {
+    if (!req.user) throw new ApiError(401, "Unauthenticated");
+
+    res.status(200).json({
+        success: true,
+        message: "Authenticated",
+        user: {
+            id: req.user.id,
+            name: req.user.name,
+            email: req.user.email,
+            role: req.user.role,
+            image: req.user.image,
+            createdAt: req.user.createdAt,
+        },
+    });
+});
+
+export const refreshTokenHandler = asyncHandler(async (req, res) => {
     const refreshToken = req.cookies.refreshToken;
-    if(!refreshToken) throw new ApiError(401, "Unathorized request")
-    
-    try {
-        const decoded = jwt.verify(refreshToken,process.env.REFRESH_TOKEN_KEY)
-        const user = await db.user.findUnique({
-            where : {
-                id : decoded.id
-            }
-        })
-        if(!user) throw new ApiError(401 , "User not found")
-        
-        if(refreshToken!== user.refreshToken) throw new ApiError(401, "Invalid refresh token")
+    if (!refreshToken) throw new ApiError(401, "Token missing");
 
-        const newAccessToken = generateAccessToken(user.id)
-    
-        const accessTokenOptions = {
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_KEY);
+    const user = await db.user.findUnique({ where: { id: decoded.id } });
+    if (!user || user.refreshToken !== refreshToken) {
+        throw new ApiError(401, "Invalid token");
+    }
+
+    const newAccessToken = generateAccessToken(user.id);
+    res
+        .cookie("accessToken", newAccessToken, {
             httpOnly: true,
-            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+            sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
             secure: process.env.NODE_ENV === "production",
             path: "/",
-            maxAge: accessTokenMaxAge
-        };
-    
-    res.cookie("accessToken", newAccessToken, accessTokenOptions).status(200).json({ success: true, message: "Access token refreshed" });
-
-    } catch (error) {
-        throw new ApiError(500, "Invalid refresh token")
-    }
-})
+            maxAge: accessTokenMaxAge,
+        })
+        .status(200)
+        .json({ success: true, message: "Token refreshed" });
+});
