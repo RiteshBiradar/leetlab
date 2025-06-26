@@ -4,7 +4,7 @@ A full-stack LeetCode-style coding platform where users can solve coding problem
 
 ## 🔗 Frontend Repository
 
-👉 [Frontend Repo](https://github.com/your-username/leetcode-frontend)
+👉 [Frontend Repo](https://github.com/RiteshBiradar/leetcode-frontend)
 
 ## 🚀 Features
 
